@@ -1,1 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CubeSat Swarm Digital Twin</title>
+  <style>
+    body { margin: 0; background: #0b0c10; color: white; font-family: Arial; }
+    #ui { position: absolute; top: 10px; left: 10px; z-index: 10; }
+    button { margin: 5px; padding: 10px; }
+  </style>
+</head>
+<body>
+
+<div id="ui">
+  <button onclick="toggleSwarm()">Toggle Swarm Control</button>
+  <button onclick="addDisturbance()">Add Disturbance</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+
+<script>
+const API = "http://localhost:8000";
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(
+  75, window.innerWidth / window.innerHeight, 0.1, 1000
+);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+camera.position.z = 6;
+
+const cubes = [];
+for (let i = 0; i < 3; i++) {
+  const geometry = new THREE.BoxGeometry();
+  const material = new THREE.MeshNormalMaterial();
+  const cube = new THREE.Mesh(geometry, material);
+  cube.position.x = (i - 1) * 2.5;
+  cubes.push(cube);
+  scene.add(cube);
+}
+
+async function updateTelemetry() {
+  const res = await fetch(`${API}/telemetry`);
+  const sats = await res.json();
+
+  sats.forEach((s, i) => {
+    cubes[i].rotation.x = THREE.MathUtils.degToRad(s.pitch);
+    cubes[i].rotation.y = THREE.MathUtils.degToRad(s.yaw);
+    cubes[i].rotation.z = THREE.MathUtils.degToRad(s.roll);
+  });
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+setInterval(updateTelemetry, 200);
+
+function toggleSwarm() {
+  fetch(`${API}/toggle-swarm`, { method: "POST" });
+}
+
+function addDisturbance() {
+  fetch(`${API}/add-disturbance`, { method: "POST" });
+}
+</script>
+
+</body>
+</html>
 
